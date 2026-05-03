@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local claude settings (may contain tokens)
+.claude/
+SubAgent/
+Skills/

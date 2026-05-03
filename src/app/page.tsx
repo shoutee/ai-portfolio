@@ -1,659 +1,367 @@
 'use client';
 
-import { useMemo, useRef, useEffect, useState } from 'react';
-import { usePuyoGame } from '@/hooks/usePuyoGame';
-import { BOARD_HEIGHT, BOARD_WIDTH, getGhostPiece } from '@/lib/puyoEngine';
-import type { Cell, Piece, Position } from '@/lib/puyoTypes';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 
-// ─── Color Config ───────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface Work {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  tool: string;
+  tags: string[];
+  accent: string;
+  href: string | null;
+  external?: boolean;
+}
 
-const COLOR_MAP: Record<
-  Exclude<Cell, 'empty'>,
-  { gradient: string; glow: string; border: string }
-> = {
-  red: {
-    gradient: 'radial-gradient(circle at 35% 30%, #ff9999 0%, #ff2222 50%, #aa0000 100%)',
-    glow: '#ff3333',
-    border: '#ff6666',
+interface Tool {
+  name: string;
+  icon: string;
+  desc: string;
+  color: string;
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const WORKS: Work[] = [
+  {
+    id: 'piyopiyo',
+    title: 'ぴよぴよAIマーケスクール',
+    description:
+      'NotebookLMを使って生成したAI×Webマーケスクールのランディングページ。ターゲット設計・訴求軸・ビジュアル方針をAIと対話しながら構築。',
+    image: '/work-piyopiyo.png',
+    tool: 'NotebookLM',
+    tags: ['LP', 'マーケ', 'かわいい系'],
+    accent: '#a855f7',
+    href: null,
   },
-  green: {
-    gradient: 'radial-gradient(circle at 35% 30%, #99ffaa 0%, #22cc44 50%, #007722 100%)',
-    glow: '#33ee55',
-    border: '#66ff88',
+  {
+    id: 'tetris',
+    title: 'テトリスゲーム',
+    description:
+      'Manusでゼロからビルドしたブラウザテトリスゲーム。スマホ向けタップ・スワイプ操作にも完全対応したレスポンシブ設計。',
+    image: '/work-tetris.png',
+    tool: 'Manus',
+    tags: ['ゲーム', 'ダーク系', 'スマホ対応'],
+    accent: '#00f5ff',
+    href: null,
   },
-  blue: {
-    gradient: 'radial-gradient(circle at 35% 30%, #99bbff 0%, #2255ff 50%, #001199 100%)',
-    glow: '#4477ff',
-    border: '#6699ff',
+  {
+    id: 'puyo',
+    title: 'ぷよぷよゲーム',
+    description:
+      'Claude Codeで設計・実装したNext.js版ぷよぷよ。連鎖BFS判定・スコアリング・レベル進行・ゴーストピース・モバイル操作を完全実装。',
+    image: '/work-puyo.png',
+    tool: 'Claude Code',
+    tags: ['ゲーム', 'Next.js', 'TypeScript'],
+    accent: '#a855f7',
+    href: '/puyo',
   },
-  yellow: {
-    gradient: 'radial-gradient(circle at 35% 30%, #ffff99 0%, #ffcc00 50%, #996600 100%)',
-    glow: '#ffdd00',
-    border: '#ffee66',
+];
+
+const TOOLS: Tool[] = [
+  {
+    name: 'NotebookLM',
+    icon: '📚',
+    desc: 'コンテンツ設計・LP構成・対話型リサーチに活用。PDFや資料をベースに構造化されたアウトプットを生成。',
+    color: '#4ade80',
   },
-  purple: {
-    gradient: 'radial-gradient(circle at 35% 30%, #dd99ff 0%, #9922ff 50%, #550099 100%)',
-    glow: '#aa44ff',
-    border: '#cc77ff',
+  {
+    name: 'Manus',
+    icon: '🤖',
+    desc: '自律型AIエージェント。要件を与えるだけでWebアプリの設計〜実装まで丸ごと構築。',
+    color: '#00f5ff',
   },
-};
+  {
+    name: 'Claude Code',
+    icon: '⚡',
+    desc: 'Anthropic製の開発特化AI CLI。アーキテクチャ設計・コーディング・レビュー・デプロイを一気通貫でサポート。',
+    color: '#a855f7',
+  },
+];
 
-const CELL_SIZE = 40;
+// ── Hook: Scroll Reveal ───────────────────────────────────────────────────────
+function useReveal<T extends HTMLElement>(delay = 0) {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
 
-// ─── Puyo Cell ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.12 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-function PuyoCell({
-  color,
-  isGhost = false,
-  isClearing = false,
-  size = CELL_SIZE - 2,
-}: {
-  color: Exclude<Cell, 'empty'>;
-  isGhost?: boolean;
-  isClearing?: boolean;
-  size?: number;
-}) {
-  const cfg = COLOR_MAP[color];
+  const style: React.CSSProperties = {
+    opacity: visible ? 1 : 0,
+    transform: visible ? 'translateY(0)' : 'translateY(28px)',
+    transition: `opacity 0.65s ease ${delay}s, transform 0.65s ease ${delay}s`,
+  };
 
+  return { ref, style };
+}
+
+// ── Component: SectionEyebrow ─────────────────────────────────────────────────
+function SectionEyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={isClearing ? 'puyo-pop' : ''}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: isGhost ? `radial-gradient(circle at 35% 30%, ${cfg.glow}55, ${cfg.glow}22)` : cfg.gradient,
-        boxShadow: isGhost
-          ? `0 0 6px ${cfg.glow}44`
-          : `0 0 14px ${cfg.glow}99, 0 0 4px ${cfg.glow}cc, inset 0 2px 0 rgba(255,255,255,0.35)`,
-        border: isGhost ? `1px solid ${cfg.border}55` : `1.5px solid ${cfg.border}`,
-        opacity: isGhost ? 0.4 : 1,
-        position: 'relative',
-        flexShrink: 0,
-      }}
-    >
-      {!isGhost && (
-        <>
-          {/* Left eye */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '20%',
-              left: '16%',
-              width: '24%',
-              height: '30%',
-              background: 'white',
-              borderRadius: '50%',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '8%',
-                right: '8%',
-                width: '58%',
-                height: '58%',
-                background: '#111',
-                borderRadius: '50%',
-              }}
-            />
-          </div>
-          {/* Right eye */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '20%',
-              right: '16%',
-              width: '24%',
-              height: '30%',
-              background: 'white',
-              borderRadius: '50%',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '8%',
-                right: '8%',
-                width: '58%',
-                height: '58%',
-                background: '#111',
-                borderRadius: '50%',
-              }}
-            />
-          </div>
-          {/* Shine */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '7%',
-              left: '10%',
-              width: '30%',
-              height: '30%',
-              background: 'rgba(255,255,255,0.5)',
-              borderRadius: '50%',
-            }}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Render Cell ─────────────────────────────────────────────────────────────
-
-interface RenderCell {
-  color: Cell;
-  isGhost: boolean;
-  isClearing: boolean;
-}
-
-function buildRenderBoard(
-  board: Cell[][],
-  currentPiece: Piece | null,
-  clearingCells: Position[],
-  phase: string
-): RenderCell[][] {
-  const grid: RenderCell[][] = board.map(row =>
-    row.map(color => ({ color, isGhost: false, isClearing: false }))
-  );
-
-  // Mark clearing cells
-  for (const { x, y } of clearingCells) {
-    if (y >= 0 && y < BOARD_HEIGHT) {
-      grid[y][x].isClearing = true;
-    }
-  }
-
-  if (currentPiece && phase === 'falling') {
-    const ghost = getGhostPiece(board, currentPiece);
-    const isGhostDifferent = ghost.pivot.y !== currentPiece.pivot.y;
-
-    const setCell = (pos: Position, color: Cell, isGhost: boolean) => {
-      if (pos.y >= 0 && pos.y < BOARD_HEIGHT) {
-        grid[pos.y][pos.x] = { color, isGhost, isClearing: false };
-      }
-    };
-
-    if (isGhostDifferent) {
-      setCell(ghost.pivot, currentPiece.pivotColor, true);
-      setCell(ghost.companion, currentPiece.companionColor, true);
-    }
-
-    setCell(currentPiece.pivot, currentPiece.pivotColor, false);
-    setCell(currentPiece.companion, currentPiece.companionColor, false);
-  }
-
-  return grid;
-}
-
-// ─── Game Board ───────────────────────────────────────────────────────────────
-
-function GameBoard({
-  renderBoard,
-  isFlashing,
-}: {
-  renderBoard: RenderCell[][];
-  isFlashing: boolean;
-}) {
-  return (
-    <div
-      className={`scanlines relative ${isFlashing ? 'board-flash' : ''}`}
-      style={{
-        width: CELL_SIZE * BOARD_WIDTH,
-        height: CELL_SIZE * BOARD_HEIGHT,
-        background: 'rgba(8, 8, 28, 0.85)',
-        border: '1px solid rgba(120,100,255,0.25)',
-        borderRadius: 8,
-        boxShadow: '0 0 40px rgba(80,50,200,0.2), inset 0 0 0 1px rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(8px)',
-        display: 'grid',
-        gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${CELL_SIZE}px)`,
-        gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${CELL_SIZE}px)`,
-      }}
-    >
-      {renderBoard.flat().map((cell, idx) => (
-        <div
-          key={idx}
-          style={{
-            width: CELL_SIZE,
-            height: CELL_SIZE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRight: (idx % BOARD_WIDTH) < BOARD_WIDTH - 1 ? '1px solid rgba(255,255,255,0.025)' : undefined,
-            borderBottom: Math.floor(idx / BOARD_WIDTH) < BOARD_HEIGHT - 1 ? '1px solid rgba(255,255,255,0.025)' : undefined,
-          }}
-        >
-          {cell.color !== 'empty' && (
-            <PuyoCell
-              color={cell.color as Exclude<Cell, 'empty'>}
-              isGhost={cell.isGhost}
-              isClearing={cell.isClearing}
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Next Piece Preview ───────────────────────────────────────────────────────
-
-function NextPiecePreview({ piece }: { piece: Piece }) {
-  const size = 30;
-  return (
-    <div style={{ position: 'relative', width: size * 2, height: size * 3 }}>
-      <div style={{ position: 'absolute', top: 0, left: size / 2 }}>
-        <PuyoCell color={piece.companionColor} size={size - 2} />
-      </div>
-      <div style={{ position: 'absolute', top: size, left: size / 2 }}>
-        <PuyoCell color={piece.pivotColor} size={size - 2} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Glass Panel ─────────────────────────────────────────────────────────────
-
-function GlassPanel({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={className}
-      style={{
-        background: 'rgba(15, 12, 40, 0.75)',
-        border: '1px solid rgba(160,120,255,0.2)',
-        borderRadius: 12,
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 4px 32px rgba(80,40,160,0.15), inset 0 1px 0 rgba(255,255,255,0.07)',
-        padding: '16px 20px',
-      }}
-    >
+    <p className="text-[11px] font-mono tracking-[0.45em] text-[#00f5ff] uppercase mb-3">
       {children}
-    </div>
+    </p>
   );
 }
 
-// ─── Label / Value ────────────────────────────────────────────────────────────
+// ── Component: WorkCard ───────────────────────────────────────────────────────
+function WorkCard({ work, index }: { work: Work; index: number }) {
+  const { ref, style } = useReveal<HTMLElement>(index * 0.12);
 
-function StatRow({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.15em',
-          color: 'rgba(180,160,255,0.6)',
-          textTransform: 'uppercase',
-          marginBottom: 2,
-          fontFamily: 'var(--font-geist-mono)',
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: accent ? 28 : 22,
-          fontWeight: 800,
-          color: accent ? '#c084fc' : '#e0d0ff',
-          fontFamily: 'var(--font-geist-mono)',
-          textShadow: accent ? '0 0 20px rgba(192,132,252,0.6)' : 'none',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-// ─── Chain Badge ─────────────────────────────────────────────────────────────
-
-function ChainBadge({ chain }: { chain: number }) {
-  if (chain < 2) return null;
-
-  const colors = ['', '', '#facc15', '#fb923c', '#f87171', '#c084fc', '#60a5fa', '#34d399'];
-  const color = colors[Math.min(chain, 7)] ?? '#fff';
-
-  return (
-    <div
-      key={chain}
-      className="chain-badge"
-      style={{
-        textAlign: 'center',
-        padding: '8px 14px',
-        background: `${color}22`,
-        border: `1.5px solid ${color}88`,
-        borderRadius: 10,
-        marginBottom: 8,
-      }}
+  const inner = (
+    <article
+      ref={ref}
+      style={style}
+      className="group rounded-2xl overflow-hidden border border-white/10 bg-white/[0.04] backdrop-blur-md
+                 hover:border-white/25 hover:bg-white/[0.07] transition-all duration-500 h-full"
     >
-      <div style={{ fontSize: 9, letterSpacing: '0.2em', color: `${color}aa`, fontWeight: 700, fontFamily: 'var(--font-geist-mono)' }}>
-        連鎖
-      </div>
-      <div style={{ fontSize: 30, fontWeight: 900, color, lineHeight: 1, textShadow: `0 0 20px ${color}` }}>
-        {chain}
-      </div>
-    </div>
-  );
-}
-
-// ─── Mobile Controls ─────────────────────────────────────────────────────────
-
-function MobileBtn({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onPress();
-      }}
-      style={{
-        width: 52,
-        height: 52,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(120,80,255,0.18)',
-        border: '1px solid rgba(180,140,255,0.3)',
-        borderRadius: 10,
-        color: 'rgba(220,200,255,0.9)',
-        fontSize: 20,
-        cursor: 'pointer',
-        WebkitTapHighlightColor: 'transparent',
-        userSelect: 'none',
-        touchAction: 'none',
-        transition: 'background 0.1s',
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ─── Overlay ─────────────────────────────────────────────────────────────────
-
-function GameOverlay({
-  phase,
-  score,
-  maxChain,
-  onStart,
-  onRestart,
-}: {
-  phase: string;
-  score: number;
-  maxChain: number;
-  onStart: () => void;
-  onRestart: () => void;
-}) {
-  if (phase !== 'idle' && phase !== 'gameover') return null;
-
-  const isGameOver = phase === 'gameover';
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(5,5,20,0.88)',
-        borderRadius: 8,
-        backdropFilter: 'blur(4px)',
-        zIndex: 10,
-      }}
-    >
-      <div className="fade-in" style={{ textAlign: 'center' }}>
-        {isGameOver ? (
-          <>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 900,
-                color: '#f87171',
-                textShadow: '0 0 30px rgba(248,113,113,0.8)',
-                marginBottom: 8,
-                letterSpacing: '0.05em',
-              }}
-            >
-              ゲームオーバー
-            </div>
-            <div style={{ fontSize: 13, color: 'rgba(200,180,255,0.6)', marginBottom: 20 }}>
-              スコア：<span style={{ color: '#c084fc', fontWeight: 700 }}>{score.toLocaleString()}</span>
-              {'  '}|{'  '}
-              最大連鎖：<span style={{ color: '#facc15', fontWeight: 700 }}>{maxChain}</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div
-              style={{
-                fontSize: 42,
-                fontWeight: 900,
-                background: 'linear-gradient(135deg, #c084fc, #60a5fa, #34d399)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '0.1em',
-                marginBottom: 6,
-                lineHeight: 1.1,
-              }}
-            >
-              ぷよぷよ
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(180,160,255,0.5)', marginBottom: 24, letterSpacing: '0.1em' }}>
-              連鎖パズルゲーム
-            </div>
-          </>
+      {/* Image */}
+      <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
+        <div className="absolute inset-0 bg-black/25 z-10" />
+        <Image
+          src={work.image}
+          alt={work.title}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          unoptimized
+        />
+        {/* Tool badge */}
+        <span
+          className="absolute top-3 right-3 z-20 text-[10px] font-mono px-2.5 py-0.5 rounded-full border"
+          style={{
+            color: work.accent,
+            borderColor: `${work.accent}70`,
+            background: `${work.accent}18`,
+          }}
+        >
+          {work.tool}
+        </span>
+        {/* Live badge */}
+        {work.href && (
+          <span className="absolute top-3 left-3 z-20 flex items-center gap-1.5 text-[10px] font-mono text-white/50">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            LIVE
+          </span>
         )}
+      </div>
 
-        <button
-          onClick={isGameOver ? onRestart : onStart}
-          style={{
-            padding: '12px 36px',
-            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-            border: '1px solid rgba(167,139,250,0.5)',
-            borderRadius: 50,
-            color: 'white',
-            fontWeight: 700,
-            fontSize: 15,
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-            boxShadow: '0 0 24px rgba(124,58,237,0.5)',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(124,58,237,0.8)')}
-          onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 0 24px rgba(124,58,237,0.5)')}
-        >
-          {isGameOver ? 'もう一度' : 'ゲームスタート'}
-        </button>
-
-        <div
-          style={{
-            marginTop: 20,
-            fontSize: 10,
-            color: 'rgba(180,160,255,0.35)',
-            letterSpacing: '0.1em',
-            lineHeight: 1.8,
-            fontFamily: 'var(--font-geist-mono)',
-          }}
-        >
-          ← → 移動{'  '} ↓ ソフトドロップ{'  '} ↑/SPC ハードドロップ
-          <br />
-          Z 左回転{'  '} X 右回転
+      {/* Body */}
+      <div className="p-5">
+        <h3 className="font-bold text-white mb-2 leading-snug">{work.title}</h3>
+        <p className="text-white/45 text-[13px] leading-relaxed mb-4">{work.description}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {work.tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/8 text-white/45"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
       </div>
+    </article>
+  );
+
+  if (work.href) {
+    return (
+      <Link href={work.href} className="block h-full">
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
+}
+
+// ── Component: ToolCard ───────────────────────────────────────────────────────
+function ToolCard({ tool, index }: { tool: Tool; index: number }) {
+  const { ref, style } = useReveal<HTMLDivElement>(index * 0.1);
+
+  return (
+    <div
+      ref={ref}
+      style={style}
+      className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-5
+                 hover:border-white/20 hover:bg-white/[0.07] transition-all duration-400"
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-2xl leading-none">{tool.icon}</span>
+        <span className="font-mono font-semibold text-sm" style={{ color: tool.color }}>
+          {tool.name}
+        </span>
+      </div>
+      <p className="text-white/45 text-[13px] leading-relaxed">{tool.desc}</p>
     </div>
   );
 }
 
-// ─── Main Game ────────────────────────────────────────────────────────────────
-
-export default function PuyoPuyoPage() {
-  const { state, start, restart, moveLeft, moveRight, moveDown, hardDrop, rotateCW, rotateCCW } =
-    usePuyoGame();
-
-  const [isFlashing, setIsFlashing] = useState(false);
-  const prevChainRef = useRef(0);
-  const [scoreAnimKey, setScoreAnimKey] = useState(0);
-  const prevScoreRef = useRef(0);
-
-  // Trigger board flash on chain
-  useEffect(() => {
-    if (state.chain > 1 && state.chain !== prevChainRef.current) {
-      prevChainRef.current = state.chain;
-      setIsFlashing(true);
-      const id = setTimeout(() => setIsFlashing(false), 600);
-      return () => clearTimeout(id);
-    }
-  }, [state.chain]);
-
-  // Trigger score bump animation on score change
-  useEffect(() => {
-    if (state.score !== prevScoreRef.current) {
-      prevScoreRef.current = state.score;
-      setScoreAnimKey(k => k + 1);
-    }
-  }, [state.score]);
-
-  const renderBoard = useMemo(
-    () => buildRenderBoard(state.board, state.currentPiece, state.clearingCells, state.phase),
-    [state.board, state.currentPiece, state.clearingCells, state.phase]
-  );
-
+// ── Component: Nav ────────────────────────────────────────────────────────────
+function Nav({ scrolled }: { scrolled: boolean }) {
   return (
-    <div
-      className="animated-bg"
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-400"
       style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        gap: 16,
+        background: scrolled ? 'rgba(8,12,20,0.88)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(14px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
       }}
     >
-      {/* Title */}
-      <div style={{ textAlign: 'center', marginBottom: 4 }}>
-        <h1
+      <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <span className="text-[10px] font-mono tracking-[0.3em] text-white/30 uppercase">
+          Portfolio
+        </span>
+        <div className="flex items-center gap-7">
+          {[
+            { id: 'works', label: 'Works' },
+            { id: 'tools', label: 'Tools' },
+            { id: 'about', label: 'About' },
+          ].map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className="text-[11px] font-mono tracking-widest text-white/35
+                         hover:text-[#00f5ff] transition-colors duration-200 uppercase"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function Home() {
+  const [scrolled, setScrolled] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    setScrolled(window.scrollY > 48);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  return (
+    <div className="min-h-screen bg-[#080c14] text-white overflow-x-hidden">
+      {/* ── Cyber grid background ── */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(0,245,255,0.035) 1px, transparent 1px),' +
+            'linear-gradient(90deg, rgba(0,245,255,0.035) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
+      />
+
+      {/* ── Nav ── */}
+      <Nav scrolled={scrolled} />
+
+      {/* ── Hero ── */}
+      <section className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 text-center">
+        {/* Radial glow */}
+        <div
+          className="pointer-events-none absolute inset-0"
           style={{
-            fontSize: 22,
-            fontWeight: 900,
-            background: 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%)',
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,245,255,0.06) 0%, transparent 70%),' +
+              'radial-gradient(ellipse 60% 50% at 50% 60%, rgba(168,85,247,0.05) 0%, transparent 70%)',
+          }}
+        />
+
+        <SectionEyebrow>AI Developer Portfolio</SectionEyebrow>
+
+        <h1
+          className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 leading-[1.1] tracking-tight"
+          style={{
+            background: 'linear-gradient(100deg, #00f5ff 0%, #ffffff 50%, #a855f7 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            letterSpacing: '0.25em',
-            textTransform: 'uppercase',
+            backgroundClip: 'text',
           }}
         >
-          ぷよぷよ
+          Build with AI.
+          <br />
+          Ship to the world.
         </h1>
-      </div>
 
-      {/* Game Layout */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        {/* Left Panel */}
-        <GlassPanel>
-          <div style={{ width: 120 }}>
-            <div key={scoreAnimKey} className="score-bump">
-              <StatRow label="スコア" value={state.score.toLocaleString()} accent />
-            </div>
-            <StatRow label="レベル" value={String(state.level).padStart(2, '0')} />
-            <StatRow label="消去数" value={state.totalCleared} />
-            <StatRow label="最大連鎖" value={state.maxChain} />
-          </div>
-        </GlassPanel>
+        <p className="text-white/40 text-sm sm:text-base max-w-md mb-12 leading-relaxed">
+          各種AIツールを使って0から構築したプロダクトのショーケース。
+          <br className="hidden sm:block" />
+          アイデアから実装・デプロイまで、AIと二人三脚で。
+        </p>
 
-        {/* Board */}
-        <div style={{ position: 'relative' }}>
-          <GameBoard renderBoard={renderBoard} isFlashing={isFlashing} />
-          <GameOverlay
-            phase={state.phase}
-            score={state.score}
-            maxChain={state.maxChain}
-            onStart={start}
-            onRestart={restart}
-          />
+        {/* CTA */}
+        <a
+          href="#works"
+          className="group flex flex-col items-center gap-2 text-white/25 hover:text-[#00f5ff] transition-colors duration-300"
+        >
+          <span className="text-[10px] font-mono tracking-[0.4em] uppercase">Scroll</span>
+          <span className="text-xl animate-bounce">↓</span>
+        </a>
+      </section>
+
+      {/* ── Works ── */}
+      <section id="works" className="relative z-10 max-w-5xl mx-auto px-6 pb-32">
+        <SectionEyebrow>Works</SectionEyebrow>
+        <h2 className="text-3xl font-bold text-white mb-10">作品</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {WORKS.map((work, i) => (
+            <WorkCard key={work.id} work={work} index={i} />
+          ))}
         </div>
+      </section>
 
-        {/* Right Panel */}
-        <GlassPanel>
-          <div style={{ width: 90, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.15em',
-                color: 'rgba(180,160,255,0.6)',
-                textTransform: 'uppercase',
-                marginBottom: 12,
-                fontFamily: 'var(--font-geist-mono)',
-              }}
-            >
-              ネクスト
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <NextPiecePreview piece={state.nextPiece} />
-            </div>
-
-            <div style={{ width: '100%', marginTop: 8 }}>
-              {state.phase === 'clearing' && <ChainBadge chain={state.chain} />}
-              {state.phase === 'falling' && state.chain > 0 && (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    fontSize: 11,
-                    color: 'rgba(180,160,255,0.4)',
-                    fontFamily: 'var(--font-geist-mono)',
-                  }}
-                >
-                  {state.chain}連鎖
-                </div>
-              )}
-            </div>
-          </div>
-        </GlassPanel>
-      </div>
-
-      {/* Mobile Controls */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          alignItems: 'center',
-          marginTop: 8,
-        }}
-      >
-        {/* Rotate row */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <MobileBtn label="↺" onPress={rotateCCW} />
-          <MobileBtn label="⬆" onPress={hardDrop} />
-          <MobileBtn label="↻" onPress={rotateCW} />
+      {/* ── Tools ── */}
+      <section id="tools" className="relative z-10 max-w-5xl mx-auto px-6 pb-32">
+        <SectionEyebrow>Tools</SectionEyebrow>
+        <h2 className="text-3xl font-bold text-white mb-10">使用AIツール</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {TOOLS.map((tool, i) => (
+            <ToolCard key={tool.name} tool={tool} index={i} />
+          ))}
         </div>
-        {/* Move row */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <MobileBtn label="◀" onPress={moveLeft} />
-          <MobileBtn label="⬇" onPress={moveDown} />
-          <MobileBtn label="▶" onPress={moveRight} />
+      </section>
+
+      {/* ── About ── */}
+      <section id="about" className="relative z-10 max-w-5xl mx-auto px-6 pb-32">
+        <SectionEyebrow>About</SectionEyebrow>
+        <h2 className="text-3xl font-bold text-white mb-10">について</h2>
+        <div className="max-w-2xl rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md p-8">
+          <p className="text-white/55 text-[15px] leading-[1.85] mb-5">
+            AIツールを駆使してプロダクトを設計・構築することに取り組んでいます。
+            NotebookLM・Manus・Claude Codeなど、各ツールの特性を活かした使い方を探求中。
+          </p>
+          <p className="text-white/30 text-sm leading-relaxed font-mono border-l-2 border-[#00f5ff]/30 pl-4">
+            「アイデアを持つ人がAIで即座にプロダクトを作れる世界」を目指して。
+          </p>
         </div>
-      </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="relative z-10 text-center pb-10 text-white/15 text-[11px] font-mono tracking-[0.35em] uppercase">
+        Built with AI — 2026
+      </footer>
     </div>
   );
 }
