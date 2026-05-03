@@ -24,6 +24,9 @@ interface Tool {
   color: string;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 // ── Data ──────────────────────────────────────────────────────────────────────
 const WORKS: Work[] = [
   {
@@ -136,7 +139,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
       <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
         <div className="absolute inset-0 bg-black/25 z-10" />
         <Image
-          src={work.image}
+          src={`${BASE}${work.image}`}
           alt={work.title}
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-105"
