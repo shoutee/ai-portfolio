@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, memo, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -50,13 +50,16 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
   const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.09);
   const href = safeRelativeHref(work.href);
 
-  const accentVars = useMemo(() => {
+  const { accentVars, accent } = useMemo(() => {
     const accent = safeHex(work.accent);
     return {
-      '--card-glow':   `${accent}40`,
-      '--card-border': `${accent}55`,
-      '--card-accent': accent,
-    } as React.CSSProperties;
+      accent,
+      accentVars: {
+        '--card-glow':   `${accent}40`,
+        '--card-border': `${accent}55`,
+        '--card-accent': accent,
+      } as React.CSSProperties,
+    };
   }, [work.accent]);
 
   const inner = (
@@ -108,7 +111,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
             </h3>
             <span
               className="shrink-0 text-[9px] px-2 py-0.5 rounded"
-              style={{ background: `${work.accent}20`, color: work.accent, border: `1px solid ${work.accent}55`, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}
+              style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}55`, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}
             >
               {work.tool}
             </span>
@@ -156,6 +159,7 @@ function ToolCard({ tool, index }: { tool: Tool; index: number }) {
 function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
   const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.08);
 
+  const color = safeHex(record.color);
   const statusColor = agentStatusColor(record.status);
   const statusLabel = agentStatusLabel(record.status);
 
@@ -165,13 +169,13 @@ function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
         className="rounded-xl p-4 h-full"
         style={{
           background: '#16181f',
-          border: `1px solid ${record.color}30`,
+          border: `1px solid ${color}30`,
           position: 'relative',
           overflow: 'hidden',
         }}
       >
         {/* Color accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: record.color }} />
+        <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: color }} />
 
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-3">
@@ -182,11 +186,11 @@ function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
                 <span
                   className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
                   style={{
-                    background: `${record.color}20`,
-                    color: record.color,
+                    background: `${color}20`,
+                    color: color,
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '0.08em',
-                    border: `1px solid ${record.color}40`,
+                    border: `1px solid ${color}40`,
                   }}
                 >
                   {record.kind}
@@ -203,7 +207,7 @@ function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
           </div>
           <span
             className="shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase"
-            style={{ background: `${statusColor}18`, color: statusColor, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', border: `1px solid ${statusColor}40` }}
+            style={{ background: `${safeHex(statusColor)}18`, color: statusColor, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', border: `1px solid ${safeHex(statusColor)}40` }}
           >
             {statusLabel}
           </span>
@@ -218,7 +222,7 @@ function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
         <ul className="space-y-1.5">
           {record.outputs.map((out, i) => (
             <li key={i} className="flex items-start gap-2 text-[11.5px]" style={{ color: '#9399b2' }}>
-              <span className="shrink-0 mt-0.5" style={{ color: record.color }}>›</span>
+              <span className="shrink-0 mt-0.5" style={{ color: color }}>›</span>
               {out}
             </li>
           ))}
@@ -364,17 +368,17 @@ function SectionHeader({ eyebrow, title, count }: { eyebrow: string; title: stri
   );
 }
 
-// ── Hook: xl viewport detection (SSR-safe — starts false, updates after mount) ─
+// ── Hook: xl viewport detection (SSR-safe via useSyncExternalStore) ──────────
 function useIsXl(): boolean {
-  const [isXl, setIsXl] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1280px)');
-    setIsXl(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsXl(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return isXl;
+  return useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia('(min-width: 1280px)');
+      mq.addEventListener('change', callback);
+      return () => mq.removeEventListener('change', callback);
+    },
+    () => window.matchMedia('(min-width: 1280px)').matches,
+    () => false,
+  );
 }
 
 // ── Component: HeroMiniCards (only mounts on xl — no image load on mobile) ────
@@ -399,7 +403,7 @@ const HeroMiniCards = memo(function HeroMiniCards({ visible }: { visible: boolea
             width: '200px',
             aspectRatio: '16/9',
             transform: `translateX(${i % 2 === 0 ? '0px' : '16px'})`,
-            border: `1px solid ${work.accent}30`,
+            border: `1px solid ${safeHex(work.accent)}30`,
           }}
         >
           <Image src={`${BASE_PATH}${work.image}`} alt={work.title} fill className="object-cover" unoptimized />
