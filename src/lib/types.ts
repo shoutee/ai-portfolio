@@ -56,20 +56,22 @@ export interface AgentRecord {
 
 // ── Agent status helpers (single responsibility) ──────────────────────────────
 
+const STATUS_COLOR_MAP: Record<AgentStatus, string> = {
+  success: '#4ade80',
+  partial:  '#f59e0b',
+  info:     '#9399b2',
+};
+
+const STATUS_LABEL_MAP: Record<AgentStatus, string> = {
+  success: 'SUCCESS',
+  partial:  'PARTIAL',
+  info:     'INFO',
+};
+
 export function agentStatusColor(status: AgentStatus): string {
-  const map: Record<AgentStatus, string> = {
-    success: '#4ade80',
-    partial:  '#f59e0b',
-    info:     '#9399b2',
-  };
-  return map[status];
+  return STATUS_COLOR_MAP[status];
 }
 
 export function agentStatusLabel(status: AgentStatus): string {
-  const map: Record<AgentStatus, string> = {
-    success: 'SUCCESS',
-    partial:  'PARTIAL',
-    info:     'INFO',
-  };
-  return map[status];
+  return STATUS_LABEL_MAP[status];
 }
