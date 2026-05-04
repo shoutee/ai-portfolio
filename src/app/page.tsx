@@ -3,96 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface Work {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  tool: string;
-  tags: string[];
-  accent: string;
-  href: string | null;
-  isNew?: boolean;
-}
-
-interface Tool {
-  name: string;
-  icon: string;
-  desc: string;
-  color: string;
-}
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-
-const ALL_FILTERS = ['すべて', 'ゲーム', 'LP', 'Next.js', 'スマホ対応'] as const;
-
-const NAV_ITEMS = [
-  { id: 'works', label: 'Works',  icon: '◈' },
-  { id: 'tools', label: 'Tools',  icon: '⬡' },
-  { id: 'about', label: 'About',  icon: '◉' },
-] as const;
-
-// ── Data ──────────────────────────────────────────────────────────────────────
-const WORKS: Work[] = [
-  {
-    id: 'piyopiyo',
-    title: 'ぴよぴよAIマーケスクール',
-    description:
-      'NotebookLMを使って生成したAI×Webマーケスクールのランディングページ。ターゲット設計・訴求軸・ビジュアル方針をAIと対話しながら構築。',
-    image: '/work-piyopiyo.png',
-    tool: 'NotebookLM',
-    tags: ['LP', 'マーケ', 'かわいい系'],
-    accent: '#a855f7',
-    href: null,
-  },
-  {
-    id: 'tetris',
-    title: 'テトリスゲーム',
-    description:
-      'Manusでゼロからビルドしたブラウザテトリスゲーム。スマホ向けタップ・スワイプ操作にも完全対応したレスポンシブ設計。',
-    image: '/work-tetris.png',
-    tool: 'Manus',
-    tags: ['ゲーム', 'ダーク系', 'スマホ対応'],
-    accent: '#00d4ff',
-    href: null,
-  },
-  {
-    id: 'puyo',
-    title: 'ぷよぷよゲーム',
-    description:
-      'Claude Codeで設計・実装したNext.js版ぷよぷよ。連鎖BFS判定・スコアリング・レベル進行・ゴーストピース・モバイル操作を完全実装。',
-    image: '/work-puyo.png',
-    tool: 'Claude Code',
-    tags: ['ゲーム', 'Next.js', 'TypeScript'],
-    accent: '#a855f7',
-    href: '/puyo',
-    isNew: true,
-  },
-];
-
-const TOOLS: Tool[] = [
-  {
-    name: 'NotebookLM',
-    icon: '📚',
-    desc: 'コンテンツ設計・LP構成・対話型リサーチに活用。PDFや資料をベースに構造化されたアウトプットを生成。',
-    color: '#4ade80',
-  },
-  {
-    name: 'Manus',
-    icon: '🤖',
-    desc: '自律型AIエージェント。要件を与えるだけでWebアプリの設計〜実装まで丸ごと構築。',
-    color: '#00d4ff',
-  },
-  {
-    name: 'Claude Code',
-    icon: '⚡',
-    desc: 'Anthropic製の開発特化AI CLI。アーキテクチャ設計・コーディング・レビュー・デプロイを一気通貫でサポート。',
-    color: '#a855f7',
-  },
-];
+import { WORKS, TOOLS, NAV_ITEMS, ALL_FILTERS, BASE_PATH } from '@/lib/data';
+import type { Work, Tool, FilterLabel } from '@/lib/types';
 
 // ── Hook: Scroll Reveal ───────────────────────────────────────────────────────
 function useReveal<T extends HTMLElement>(delay = 0) {
@@ -104,10 +16,7 @@ function useReveal<T extends HTMLElement>(delay = 0) {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
-        }
+        if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
       },
       { threshold: 0.06 },
     );
@@ -115,48 +24,81 @@ function useReveal<T extends HTMLElement>(delay = 0) {
     return () => obs.disconnect();
   }, []);
 
-  // Reveal wrapper style: opacity + translateY only
-  const wrapStyle: React.CSSProperties = {
-    opacity: visible ? 1 : 0,
-    transform: visible ? 'translateY(0px)' : 'translateY(22px)',
-    transition: `opacity 0.4s ease ${delay}s, transform 0.4s ease ${delay}s`,
+  return {
+    ref,
+    wrapStyle: {
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(22px)',
+      transition: `opacity 0.4s ease ${delay}s, transform 0.4s ease ${delay}s`,
+    } as React.CSSProperties,
   };
-
-  return { ref, wrapStyle };
 }
 
 // ── Component: WorkCard ───────────────────────────────────────────────────────
 function WorkCard({ work, index }: { work: Work; index: number }) {
-  const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.08);
+  const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.09);
+
+  // Per-card CSS variables for accent glow and line
+  const accentVars = {
+    '--card-glow':   `${work.accent}40`,
+    '--card-border': `${work.accent}55`,
+    '--card-accent': work.accent,
+  } as React.CSSProperties;
 
   const inner = (
-    <article className={`work-card${work.href ? ' clickable' : ''}`}>
-      {/* Thumbnail */}
+    <article
+      className={`work-card${work.href ? ' clickable' : ''}`}
+      style={accentVars}
+    >
+      {/* ── Thumbnail ── */}
       <div className="relative" style={{ aspectRatio: '16/9', overflow: 'hidden' }}>
         <Image
-          src={`${BASE}${work.image}`}
+          src={`${BASE_PATH}${work.image}`}
           alt={work.title}
           fill
           className="object-cover thumb-img"
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
           unoptimized
         />
 
-        {/* Gradient scrim */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(to top, rgba(13,15,20,0.97) 0%, rgba(13,15,20,0.3) 45%, transparent 75%)',
-          }}
-        />
+        {/* Top scrim — badge background */}
+        <div className="card-top-scrim absolute inset-0 pointer-events-none" />
 
-        {/* NEW badge */}
+        {/* Bottom gradient scrim */}
+        <div className="card-scrim absolute inset-0 pointer-events-none" />
+
+        {/* ── Badges (top row) ── */}
+        {/* LIVE */}
+        {work.href && (
+          <div
+            className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded"
+            style={{
+              background: 'rgba(0,0,0,0.55)',
+              border: '1px solid rgba(74,222,128,0.45)',
+              backdropFilter: 'blur(6px)',
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span
+              style={{
+                color: '#4ade80',
+                fontSize: '9px',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.08em',
+              }}
+            >
+              LIVE
+            </span>
+          </div>
+        )}
+
+        {/* NEW */}
         {work.isNew && (
           <span
             className="absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded"
             style={{
-              background: '#a855f7',
-              color: '#fff',
+              background: '#7c3aed',
+              color: '#f5f3ff',
               letterSpacing: '0.08em',
               fontFamily: 'var(--font-mono)',
               textTransform: 'uppercase',
@@ -166,18 +108,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
           </span>
         )}
 
-        {/* LIVE badge */}
-        {work.href && (
-          <span
-            className="absolute top-2 left-2 flex items-center gap-1.5 text-[9px]"
-            style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-mono)' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            LIVE
-          </span>
-        )}
-
-        {/* Overlay content: tool badge + title */}
+        {/* ── Overlay: title + tool badge ── */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <div className="flex items-end justify-between gap-2">
             <h3
@@ -189,7 +120,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
             <span
               className="shrink-0 text-[9px] px-2 py-0.5 rounded"
               style={{
-                background: `${work.accent}22`,
+                background: `${work.accent}20`,
                 color: work.accent,
                 border: `1px solid ${work.accent}55`,
                 fontFamily: 'var(--font-mono)',
@@ -202,9 +133,12 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div className="p-3 pt-2.5">
-        <p className="text-[12px] leading-[1.65] mb-2.5" style={{ color: '#9399b2' }}>
+        <p
+          className="text-[12.5px] leading-[1.65] mb-2.5"
+          style={{ color: '#9399b2' }}
+        >
           {work.description}
         </p>
         <div className="flex flex-wrap gap-1">
@@ -219,9 +153,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
   return (
     <div ref={ref} style={wrapStyle}>
       {work.href ? (
-        <Link href={work.href} className="block">
-          {inner}
-        </Link>
+        <Link href={work.href} className="block h-full">{inner}</Link>
       ) : (
         inner
       )}
@@ -231,15 +163,15 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
 
 // ── Component: ToolCard ───────────────────────────────────────────────────────
 function ToolCard({ tool, index }: { tool: Tool; index: number }) {
-  const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.08);
+  const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.09);
 
   return (
     <div ref={ref} style={wrapStyle}>
       <div className="tool-card h-full">
-        <div className="flex items-center gap-3 mb-2.5">
+        <div className="flex items-center gap-3 mb-3">
           <span className="text-2xl leading-none">{tool.icon}</span>
           <span
-            className="font-semibold text-sm"
+            className="font-semibold text-[13px]"
             style={{ color: tool.color, fontFamily: 'var(--font-mono)' }}
           >
             {tool.name}
@@ -260,9 +192,9 @@ function TopBar() {
       className="sticky top-0 z-50 flex items-center justify-between px-5"
       style={{
         height: '56px',
-        background: 'rgba(22,24,31,0.92)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(22,24,31,0.94)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         borderBottom: '1px solid #2a2d3e',
         flexShrink: 0,
       }}
@@ -270,8 +202,8 @@ function TopBar() {
       {/* Brand */}
       <div className="flex items-center gap-2.5">
         <div
-          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold"
-          style={{ background: 'linear-gradient(135deg, #ff6b2b, #a855f7)' }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold select-none"
+          style={{ background: 'linear-gradient(135deg, #ff6b2b 0%, #a855f7 100%)' }}
         >
           ⚡
         </div>
@@ -303,7 +235,7 @@ function TopBar() {
       </nav>
 
       {/* CTA */}
-      <a href="#works" className="btn-primary text-[12px]" style={{ padding: '7px 16px' }}>
+      <a href="#works" className="btn-primary" style={{ fontSize: '12px', padding: '7px 16px' }}>
         Works →
       </a>
     </header>
@@ -328,10 +260,10 @@ function Sidebar({ activeSection }: { activeSection: string }) {
         padding: '28px 12px 20px',
       }}
     >
-      {/* Profile */}
+      {/* Avatar + name */}
       <div className="px-3 mb-8">
         <div
-          className="w-11 h-11 rounded-full flex items-center justify-center text-lg mb-3"
+          className="w-11 h-11 rounded-full flex items-center justify-center text-lg mb-3 select-none"
           style={{ background: 'linear-gradient(135deg, #ff6b2b 0%, #a855f7 100%)' }}
         >
           ⚡
@@ -339,13 +271,16 @@ function Sidebar({ activeSection }: { activeSection: string }) {
         <p className="font-bold text-[14px] mb-0.5" style={{ color: '#f0f2f8' }}>
           AI Developer
         </p>
-        <p className="text-[11px]" style={{ color: '#555a72', fontFamily: 'var(--font-mono)' }}>
+        <p
+          className="text-[11px]"
+          style={{ color: '#555a72', fontFamily: 'var(--font-mono)' }}
+        >
           Portfolio 2026
         </p>
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5">
+      <nav className="flex flex-col gap-0.5 mb-6">
         <p
           className="px-3 mb-2 text-[9px] font-semibold uppercase tracking-[0.1em]"
           style={{ color: '#555a72', fontFamily: 'var(--font-mono)' }}
@@ -365,10 +300,10 @@ function Sidebar({ activeSection }: { activeSection: string }) {
       </nav>
 
       {/* Divider */}
-      <div className="my-6 mx-3" style={{ borderTop: '1px solid #2a2d3e' }} />
+      <div className="mx-3 mb-5" style={{ borderTop: '1px solid #2a2d3e' }} />
 
       {/* Stats */}
-      <div className="px-3 space-y-4">
+      <div className="px-3">
         <p
           className="text-[9px] font-semibold uppercase tracking-[0.1em] mb-3"
           style={{ color: '#555a72', fontFamily: 'var(--font-mono)' }}
@@ -380,12 +315,10 @@ function Sidebar({ activeSection }: { activeSection: string }) {
           { label: 'AI Tools', value: TOOLS.length },
           { label: 'Year', value: 2026 },
         ].map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between">
-            <span className="text-[12px]" style={{ color: '#9399b2' }}>
-              {label}
-            </span>
+          <div key={label} className="flex items-center justify-between mb-3">
+            <span className="text-[12px]" style={{ color: '#9399b2' }}>{label}</span>
             <span
-              className="text-[13px] font-bold tabular-nums"
+              className="text-[14px] font-bold tabular-nums"
               style={{ color: '#ff6b2b', fontFamily: 'var(--font-mono)' }}
             >
               {value}
@@ -395,12 +328,12 @@ function Sidebar({ activeSection }: { activeSection: string }) {
       </div>
 
       {/* Bottom */}
-      <div className="mt-auto pt-6 px-3">
+      <div className="mt-auto px-3 pt-6">
         <p
           className="text-[9px] uppercase"
           style={{ color: '#555a72', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}
         >
-          Built with AI
+          Built with AI — 2026
         </p>
       </div>
     </aside>
@@ -422,7 +355,11 @@ function SectionHeader({
       <div>
         <p
           className="text-[10px] font-semibold uppercase mb-1.5"
-          style={{ color: '#00d4ff', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}
+          style={{
+            color: '#00d4ff',
+            letterSpacing: '0.1em',
+            fontFamily: 'var(--font-mono)',
+          }}
         >
           {eyebrow}
         </p>
@@ -445,44 +382,116 @@ function SectionHeader({
   );
 }
 
+// ── Component: HeroMiniCards ──────────────────────────────────────────────────
+function HeroMiniCards({ visible }: { visible: boolean }) {
+  return (
+    <div
+      className="hidden xl:flex flex-col gap-3"
+      style={{
+        position: 'absolute',
+        right: '48px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.8s ease 0.5s',
+      }}
+    >
+      {WORKS.map((work, i) => (
+        <div
+          key={work.id}
+          className="relative rounded-lg overflow-hidden"
+          style={{
+            width: '200px',
+            aspectRatio: '16/9',
+            transform: `translateX(${i % 2 === 0 ? '0px' : '16px'})`,
+            border: `1px solid ${work.accent}30`,
+            boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0 ${work.accent}00`,
+            transition: 'box-shadow 200ms ease, transform 200ms ease',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.boxShadow =
+              `0 12px 32px rgba(0,0,0,0.6), 0 0 20px ${work.accent}40`;
+            (e.currentTarget as HTMLElement).style.transform =
+              `translateX(${i % 2 === 0 ? '-4px' : '12px'})`;
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.boxShadow =
+              `0 8px 24px rgba(0,0,0,0.5)`;
+            (e.currentTarget as HTMLElement).style.transform =
+              `translateX(${i % 2 === 0 ? '0px' : '16px'})`;
+          }}
+        >
+          <Image
+            src={`${BASE_PATH}${work.image}`}
+            alt={work.title}
+            fill
+            className="object-cover"
+            style={{ transition: 'transform 400ms ease' }}
+            unoptimized
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(to top, rgba(13,15,20,0.85) 0%, transparent 60%)',
+            }}
+          />
+          <span
+            className="absolute bottom-2 left-2 right-2 text-[9px] font-bold leading-tight"
+            style={{ color: '#f0f2f8', fontFamily: 'var(--font-mono)' }}
+          >
+            {work.title}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const [activeSection, setActiveSection] = useState('works');
-  const [activeFilter, setActiveFilter] = useState<string>('すべて');
-  const heroRef = useRef<HTMLDivElement>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterLabel>('すべて');
   const [heroVisible, setHeroVisible] = useState(false);
 
-  // Hero entrance animation
+  // Cursor glow in Works section
+  const worksSectionRef = useRef<HTMLElement>(null);
+  const [cursorGlow, setCursorGlow] = useState({ x: -999, y: -999 });
+
   useEffect(() => {
     const timer = setTimeout(() => setHeroVisible(true), 80);
     return () => clearTimeout(timer);
   }, []);
 
-  // Section tracking
+  // Section active tracking
   useEffect(() => {
-    const ids = NAV_ITEMS.map((n) => n.id);
     const observers: IntersectionObserver[] = [];
-
-    ids.forEach((id) => {
+    NAV_ITEMS.forEach(({ id }) => {
       const el = document.getElementById(id);
       if (!el) return;
       const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveSection(id);
-        },
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
         { rootMargin: '-25% 0px -65% 0px' },
       );
       obs.observe(el);
       observers.push(obs);
     });
-
     return () => observers.forEach((obs) => obs.disconnect());
   }, []);
 
-  const filteredWorks = useCallback(() => {
-    if (activeFilter === 'すべて') return WORKS;
-    return WORKS.filter((w) => w.tags.includes(activeFilter));
-  }, [activeFilter])();
+  // Cursor glow handler
+  const handleWorksMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    if (!worksSectionRef.current) return;
+    const rect = worksSectionRef.current.getBoundingClientRect();
+    setCursorGlow({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, []);
+  const handleWorksMouseLeave = useCallback(() => {
+    setCursorGlow({ x: -999, y: -999 });
+  }, []);
+
+  const filteredWorks = activeFilter === 'すべて'
+    ? WORKS
+    : WORKS.filter((w) => w.tags.includes(activeFilter));
 
   return (
     <div
@@ -502,43 +511,31 @@ export default function Home() {
 
         <main style={{ flex: 1, minWidth: 0 }}>
 
-          {/* ── Hero ── */}
+          {/* ══ Hero ══════════════════════════════════════════════════════════ */}
           <section
-            ref={heroRef}
             className="relative overflow-hidden"
-            style={{
-              padding: '72px 48px 64px',
-              borderBottom: '1px solid #2a2d3e',
-            }}
+            style={{ padding: '72px 48px 64px', borderBottom: '1px solid #2a2d3e' }}
           >
+            {/* Animated grid */}
+            <div className="hero-grid pointer-events-none absolute inset-0 opacity-100" />
+
             {/* Ambient glow */}
             <div
               className="pointer-events-none absolute inset-0"
               style={{
                 background:
-                  'radial-gradient(ellipse 65% 70% at 10% 50%, rgba(255,107,43,0.12) 0%, transparent 65%),' +
-                  'radial-gradient(ellipse 50% 60% at 90% 20%, rgba(168,85,247,0.07) 0%, transparent 65%)',
+                  'radial-gradient(ellipse 60% 70% at 10% 50%, rgba(255,107,43,0.13) 0%, transparent 65%),' +
+                  'radial-gradient(ellipse 45% 55% at 85% 20%, rgba(168,85,247,0.07) 0%, transparent 65%)',
               }}
             />
 
-            {/* Grid texture */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-40"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(255,107,43,0.04) 1px, transparent 1px),' +
-                  'linear-gradient(90deg, rgba(255,107,43,0.04) 1px, transparent 1px)',
-                backgroundSize: '48px 48px',
-              }}
-            />
-
-            <div className="relative z-10 max-w-[600px]">
-              {/* Eyebrow */}
+            <div className="relative z-10 max-w-[580px]">
+              {/* Eyebrow pill */}
               <div
-                className="inline-flex items-center gap-2 mb-5 px-3 py-1 rounded-full"
+                className="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full"
                 style={{
                   background: 'rgba(255,107,43,0.1)',
-                  border: '1px solid rgba(255,107,43,0.25)',
+                  border: '1px solid rgba(255,107,43,0.28)',
                   opacity: heroVisible ? 1 : 0,
                   transform: heroVisible ? 'translateY(0)' : 'translateY(16px)',
                   transition: 'opacity 0.5s ease, transform 0.5s ease',
@@ -550,13 +547,17 @@ export default function Home() {
                 />
                 <span
                   className="text-[10px] font-semibold uppercase"
-                  style={{ color: '#ff8f5e', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}
+                  style={{
+                    color: '#ff8f5e',
+                    letterSpacing: '0.1em',
+                    fontFamily: 'var(--font-mono)',
+                  }}
                 >
                   AI Developer Portfolio
                 </span>
               </div>
 
-              {/* Headline */}
+              {/* H1 */}
               <h1
                 className="font-extrabold leading-[1.08] mb-5"
                 style={{
@@ -564,7 +565,7 @@ export default function Home() {
                   letterSpacing: '-0.035em',
                   opacity: heroVisible ? 1 : 0,
                   transform: heroVisible ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'opacity 0.5s ease 0.08s, transform 0.5s ease 0.08s',
+                  transition: 'opacity 0.5s ease 0.09s, transform 0.5s ease 0.09s',
                 }}
               >
                 <span style={{ color: '#f0f2f8' }}>Build with AI.</span>
@@ -582,124 +583,96 @@ export default function Home() {
                 <span style={{ color: '#f0f2f8' }}> to the world.</span>
               </h1>
 
-              {/* Subtext */}
+              {/* Sub */}
               <p
                 className="mb-8 leading-relaxed"
                 style={{
                   fontSize: '14px',
                   color: '#9399b2',
-                  maxWidth: '440px',
+                  maxWidth: '420px',
                   opacity: heroVisible ? 1 : 0,
-                  transform: heroVisible ? 'translateY(0)' : 'translateY(16px)',
-                  transition: 'opacity 0.5s ease 0.16s, transform 0.5s ease 0.16s',
+                  transform: heroVisible ? 'translateY(0)' : 'translateY(14px)',
+                  transition: 'opacity 0.5s ease 0.18s, transform 0.5s ease 0.18s',
                 }}
               >
                 各種AIツールを使って0から構築したプロダクトのショーケース。
                 アイデアから実装・デプロイまで、AIと二人三脚で。
               </p>
 
-              {/* CTA buttons */}
+              {/* CTAs */}
               <div
                 className="flex gap-3 flex-wrap"
                 style={{
                   opacity: heroVisible ? 1 : 0,
-                  transform: heroVisible ? 'translateY(0)' : 'translateY(12px)',
-                  transition: 'opacity 0.5s ease 0.24s, transform 0.5s ease 0.24s',
+                  transform: heroVisible ? 'translateY(0)' : 'translateY(10px)',
+                  transition: 'opacity 0.5s ease 0.27s, transform 0.5s ease 0.27s',
                 }}
               >
-                <a href="#works" className="btn-primary">
-                  作品を見る →
-                </a>
-                <a href="#about" className="btn-ghost">
-                  自己紹介
-                </a>
+                <a href="#works" className="btn-primary">作品を見る →</a>
+                <a href="#about" className="btn-ghost">自己紹介</a>
               </div>
             </div>
 
-            {/* Decorative right side (desktop) */}
-            <div
-              className="hidden xl:flex absolute right-12 top-1/2 -translate-y-1/2 gap-4 opacity-60"
-              style={{
-                opacity: heroVisible ? 0.6 : 0,
-                transition: 'opacity 0.8s ease 0.4s',
-              }}
-            >
-              {WORKS.map((work, i) => (
-                <div
-                  key={work.id}
-                  className="relative rounded-lg overflow-hidden"
-                  style={{
-                    width: '140px',
-                    aspectRatio: '9/14',
-                    transform: `translateY(${i % 2 === 0 ? '-12px' : '12px'})`,
-                    border: '1px solid rgba(255,107,43,0.15)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <Image
-                    src={`${BASE}${work.image}`}
-                    alt={work.title}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        'linear-gradient(to top, rgba(13,15,20,0.8) 0%, transparent 60%)',
-                    }}
-                  />
-                  <span
-                    className="absolute bottom-2 left-2 right-2 text-[9px] font-bold leading-tight"
-                    style={{ color: '#f0f2f8', fontFamily: 'var(--font-mono)' }}
-                  >
-                    {work.title}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {/* Decorative mini-cards */}
+            <HeroMiniCards visible={heroVisible} />
           </section>
 
-          {/* ── Works ── */}
+          {/* ══ Works ═════════════════════════════════════════════════════════ */}
           <section
             id="works"
-            className="px-8 py-10"
-            style={{ borderBottom: '1px solid #2a2d3e' }}
+            ref={worksSectionRef}
+            className="relative px-8 py-10"
+            style={{ borderBottom: '1px solid #2a2d3e', overflow: 'hidden' }}
+            onMouseMove={handleWorksMouseMove}
+            onMouseLeave={handleWorksMouseLeave}
           >
-            <SectionHeader eyebrow="Works" title="作品" count={filteredWorks.length} />
+            {/* Cursor-following ambient glow */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `radial-gradient(circle 380px at ${cursorGlow.x}px ${cursorGlow.y}px, rgba(255,107,43,0.055) 0%, transparent 75%)`,
+                transition: 'background 60ms linear',
+              }}
+            />
 
-            {/* Filter chips */}
-            <div className="flex gap-2 mb-6 flex-wrap">
-              {ALL_FILTERS.map((f) => (
-                <button
-                  key={f}
-                  className={`filter-chip${activeFilter === f ? ' active' : ''}`}
-                  onClick={() => setActiveFilter(f)}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+            <div className="relative z-10">
+              <SectionHeader eyebrow="Works" title="作品" count={filteredWorks.length} />
 
-            {/* Card grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredWorks.length > 0 ? (
-                filteredWorks.map((work, i) => (
-                  <WorkCard key={work.id} work={work} index={i} />
-                ))
-              ) : (
-                <div
-                  className="col-span-full py-16 text-center text-[13px]"
-                  style={{ color: '#555a72' }}
-                >
-                  このフィルターに該当する作品はまだありません。
-                </div>
-              )}
+              {/* Filter chips */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                {ALL_FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    className={`filter-chip${activeFilter === f ? ' active' : ''}`}
+                    onClick={() => setActiveFilter(f)}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
+              {/* Card grid — re-keyed on filter to re-trigger reveal animations */}
+              <div
+                key={activeFilter}
+                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"
+              >
+                {filteredWorks.length > 0 ? (
+                  filteredWorks.map((work, i) => (
+                    <WorkCard key={work.id} work={work} index={i} />
+                  ))
+                ) : (
+                  <div
+                    className="col-span-full py-16 text-center text-[13px]"
+                    style={{ color: '#555a72' }}
+                  >
+                    このフィルターに該当する作品はまだありません。
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
-          {/* ── Tools ── */}
+          {/* ══ Tools ═════════════════════════════════════════════════════════ */}
           <section
             id="tools"
             className="px-8 py-10"
@@ -713,7 +686,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── About ── */}
+          {/* ══ About ═════════════════════════════════════════════════════════ */}
           <section id="about" className="px-8 py-10">
             <SectionHeader eyebrow="About" title="自己紹介" />
 
@@ -721,22 +694,19 @@ export default function Home() {
               className="max-w-2xl rounded-xl p-6"
               style={{ background: '#16181f', border: '1px solid #2a2d3e' }}
             >
-              {/* Accent line */}
+              {/* Profile row */}
               <div
-                className="flex items-center gap-3 mb-5"
-                style={{
-                  paddingBottom: '16px',
-                  borderBottom: '1px solid #2a2d3e',
-                }}
+                className="flex items-center gap-4 mb-5 pb-5"
+                style={{ borderBottom: '1px solid #2a2d3e' }}
               >
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0 select-none"
                   style={{ background: 'linear-gradient(135deg, #ff6b2b, #a855f7)' }}
                 >
                   ⚡
                 </div>
                 <div>
-                  <p className="font-bold text-sm" style={{ color: '#f0f2f8' }}>
+                  <p className="font-bold text-[15px] mb-0.5" style={{ color: '#f0f2f8' }}>
                     AI Developer
                   </p>
                   <p
@@ -749,7 +719,7 @@ export default function Home() {
               </div>
 
               <p
-                className="text-[13.5px] leading-[1.85] mb-5"
+                className="text-[13.5px] leading-[1.9] mb-5"
                 style={{ color: '#9399b2' }}
               >
                 AIツールを駆使してプロダクトを設計・構築することに取り組んでいます。
@@ -757,7 +727,7 @@ export default function Home() {
               </p>
 
               <blockquote
-                className="pl-4 text-[13px] leading-relaxed"
+                className="pl-4 text-[13px] leading-relaxed mb-5"
                 style={{
                   color: '#9399b2',
                   borderLeft: '2px solid rgba(0,212,255,0.4)',
@@ -768,17 +738,15 @@ export default function Home() {
               </blockquote>
 
               {/* Tech tags */}
-              <div className="flex flex-wrap gap-2 mt-5">
+              <div className="flex flex-wrap gap-2">
                 {['Next.js', 'TypeScript', 'Claude Code', 'NotebookLM', 'Manus'].map((t) => (
-                  <span key={t} className="tag-chip" style={{ fontSize: '10px' }}>
-                    {t}
-                  </span>
+                  <span key={t} className="tag-chip" style={{ fontSize: '10px' }}>{t}</span>
                 ))}
               </div>
             </div>
           </section>
 
-          {/* ── Footer ── */}
+          {/* ══ Footer ════════════════════════════════════════════════════════ */}
           <footer
             className="px-8 py-5 flex items-center justify-between"
             style={{
@@ -790,13 +758,10 @@ export default function Home() {
             }}
           >
             <span className="uppercase">Built with AI — 2026</span>
-            <span
-              className="flex items-center gap-1.5"
-              style={{ color: '#ff6b2b', opacity: 0.7 }}
-            >
+            <div className="flex items-center gap-1.5" style={{ color: '#4ade80', opacity: 0.8 }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              ONLINE
-            </span>
+              <span className="uppercase">Online</span>
+            </div>
           </footer>
         </main>
       </div>

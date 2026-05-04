@@ -2,19 +2,22 @@
 
 /* ── Design tokens ──────────────────────────────────────────────────────────── */
 :root {
-  --bg:           #0d0f14;
-  --surface:      #16181f;
-  --elevated:     #1e2130;
-  --border:       #2a2d3e;
-  --primary:      #ff6b2b;
-  --primary-glow: rgba(255, 107, 43, 0.25);
-  --secondary:    #00d4ff;
-  --tertiary:     #a855f7;
-  --text-primary: #f0f2f8;
+  --bg:             #0d0f14;
+  --surface:        #16181f;
+  --elevated:       #1e2130;
+  --border:         #2a2d3e;
+  --primary:        #ff6b2b;
+  --primary-light:  #ff8f5e;
+  --primary-glow:   rgba(255, 107, 43, 0.25);
+  --secondary:      #00d4ff;
+  --secondary-glow: rgba(0, 212, 255, 0.20);
+  --tertiary:       #a855f7;
+  --tertiary-glow:  rgba(168, 85, 247, 0.20);
+  --text-primary:   #f0f2f8;
   --text-secondary: #9399b2;
-  --text-muted:   #555a72;
+  --text-muted:     #555a72;
 
-  /* legacy (puyo game uses these) */
+  /* puyo game legacy */
   --background: #050510;
   --foreground: #e0e0ff;
 }
@@ -26,35 +29,25 @@
   --font-mono: var(--font-mono), "JetBrains Mono", monospace;
 }
 
-/* ── Global reset ───────────────────────────────────────────────────────────── */
+/* ── Global ─────────────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text-primary);
   font-family: var(--font-inter), system-ui, sans-serif;
   overflow-x: hidden;
 }
 
-/* ── Custom scrollbar ───────────────────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* ── Portfolio animations ───────────────────────────────────────────────────── */
+/* ── Keyframes ──────────────────────────────────────────────────────────────── */
 @keyframes heroShimmer {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
@@ -67,7 +60,7 @@ body {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { opacity: 0.6; }
+  0%, 100% { opacity: 0.5; }
   50%       { opacity: 1; }
 }
 
@@ -76,24 +69,23 @@ body {
   to   { background-position: 48px 48px; }
 }
 
-.portfolio-hero-text {
-  background: linear-gradient(120deg, var(--primary) 0%, var(--text-primary) 45%, var(--secondary) 100%);
-  background-size: 200% 200%;
-  animation: heroShimmer 6s ease infinite;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+@keyframes accentLineScan {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-.animate-float-up {
-  animation: floatUp 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+/* ── Portfolio atoms ────────────────────────────────────────────────────────── */
+.glow-pulse { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 107, 43, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 107, 43, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: scanGrid 12s linear infinite;
 }
 
-.glow-pulse {
-  animation: pulseGlow 2.5s ease-in-out infinite;
-}
-
-/* ── Sidebar nav item hover (CSS-only) ──────────────────────────────────────── */
+/* ── Sidebar nav ────────────────────────────────────────────────────────────── */
 .sidebar-nav-item {
   display: flex;
   align-items: center;
@@ -105,7 +97,6 @@ body {
   text-decoration: none;
   color: var(--text-secondary);
   transition: background 150ms ease, color 150ms ease;
-  cursor: pointer;
 }
 .sidebar-nav-item:hover {
   background: var(--elevated);
@@ -113,7 +104,7 @@ body {
 }
 .sidebar-nav-item.active {
   background: rgba(255, 107, 43, 0.12);
-  color: #ff8f5e;
+  color: var(--primary-light);
 }
 .sidebar-nav-item .nav-icon {
   color: var(--text-muted);
@@ -125,45 +116,84 @@ body {
   color: var(--primary);
 }
 
-/* ── Card effects ───────────────────────────────────────────────────────────── */
+/* ── Work card ──────────────────────────────────────────────────────────────── */
 .work-card {
+  position: relative;
   background: var(--surface);
   border-radius: 10px;
   border: 1px solid var(--border);
   overflow: hidden;
-  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: default;
+  transition:
+    transform     150ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow    150ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color  150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .work-card:hover {
-  transform: translateY(-3px) scale(1.015);
-  box-shadow: 0 8px 32px var(--primary-glow);
-  border-color: rgba(255, 107, 43, 0.4);
-}
-.work-card.clickable {
-  cursor: pointer;
-}
-.work-card .thumb-img {
-  transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.work-card:hover .thumb-img {
-  transform: scale(1.06);
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 12px 40px var(--card-glow, var(--primary-glow));
+  border-color: var(--card-border, rgba(255, 107, 43, 0.4));
 }
 
+/* Accent line at bottom */
+.work-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--primary));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 0 10px 10px;
+}
+.work-card:hover::after {
+  transform: scaleX(1);
+}
+
+/* Thumbnail scale */
+.work-card .thumb-img {
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.work-card:hover .thumb-img { transform: scale(1.07); }
+
+/* Gradient scrim — thins on hover to reveal image */
+.work-card .card-scrim {
+  background: linear-gradient(
+    to top,
+    rgba(13, 15, 20, 0.97) 0%,
+    rgba(13, 15, 20, 0.45) 42%,
+    transparent 72%
+  );
+  transition: opacity 300ms ease;
+}
+.work-card:hover .card-scrim { opacity: 0.72; }
+
+/* Top scrim for badge readability */
+.work-card .card-top-scrim {
+  background: linear-gradient(to bottom, rgba(13,15,20,0.55) 0%, transparent 40%);
+}
+
+/* Clickable cursor */
+.work-card.clickable { cursor: pointer; }
+
+/* ── Tool card ──────────────────────────────────────────────────────────────── */
 .tool-card {
   background: var(--surface);
   border-radius: 10px;
   border: 1px solid var(--border);
-  padding: 16px 18px;
-  transition: background 150ms ease;
+  padding: 18px 20px;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 .tool-card:hover {
   background: var(--elevated);
+  border-color: rgba(255,255,255,0.08);
 }
 
-/* ── Button styles ──────────────────────────────────────────────────────────── */
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
 .btn-primary {
+  display: inline-block;
   background: var(--primary);
   color: #0d0f14;
   font-weight: 700;
@@ -173,19 +203,17 @@ body {
   border: none;
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
   box-shadow: 0 4px 14px var(--primary-glow);
-  transition: background 80ms ease, transform 80ms ease, box-shadow 80ms ease;
+  transition: background 80ms ease, box-shadow 80ms ease, transform 80ms ease;
 }
 .btn-primary:hover {
-  background: #ff8f5e;
-  box-shadow: 0 6px 20px rgba(255, 107, 43, 0.4);
+  background: var(--primary-light);
+  box-shadow: 0 6px 20px rgba(255,107,43,0.45);
 }
-.btn-primary:active {
-  transform: scale(0.97);
-}
+.btn-primary:active { transform: scale(0.97); }
 
 .btn-ghost {
+  display: inline-block;
   background: transparent;
   color: var(--text-secondary);
   font-weight: 600;
@@ -195,7 +223,6 @@ body {
   border: 1.5px solid var(--border);
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
   transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .btn-ghost:hover {
@@ -206,33 +233,34 @@ body {
 
 /* ── Filter chips ───────────────────────────────────────────────────────────── */
 .filter-chip {
-  font-size: 10px;
   font-family: var(--font-mono), monospace;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 4px 12px;
+  padding: 5px 13px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: var(--elevated);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
   white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 .filter-chip:hover {
   border-color: var(--text-muted);
   color: var(--text-primary);
 }
 .filter-chip.active {
-  background: rgba(255, 107, 43, 0.15);
+  background: rgba(255,107,43,0.15);
   border-color: var(--primary);
-  color: #ff8f5e;
+  color: var(--primary-light);
 }
 
 /* ── Tag chip ───────────────────────────────────────────────────────────────── */
 .tag-chip {
-  font-size: 9px;
+  display: inline-block;
   font-family: var(--font-mono), monospace;
+  font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 3px 8px;
@@ -243,82 +271,63 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Puyo Puyo game styles (unchanged)
+   Puyo Puyo game — unchanged
 ───────────────────────────────────────────────────────────────────────────── */
-
-/* ---- Puyo Pop Animation ---- */
 @keyframes puyoPop {
   0%   { transform: scale(1) rotate(0deg);    opacity: 1; }
   25%  { transform: scale(1.35) rotate(8deg); opacity: 0.9; }
   100% { transform: scale(0) rotate(-15deg);  opacity: 0; }
 }
-.puyo-pop {
-  animation: puyoPop 0.55s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
+.puyo-pop { animation: puyoPop 0.55s cubic-bezier(0.4, 0, 0.6, 1) forwards; }
 
-/* ---- Chain Badge Animation ---- */
 @keyframes chainBadge {
   0%   { transform: scale(0.3) translateY(10px); opacity: 0; }
   50%  { transform: scale(1.15) translateY(-4px); opacity: 1; }
-  100% { transform: scale(1) translateY(0);      opacity: 1; }
+  100% { transform: scale(1) translateY(0);       opacity: 1; }
 }
-.chain-badge {
-  animation: chainBadge 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
+.chain-badge { animation: chainBadge 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-/* ---- Score bump ---- */
 @keyframes scoreBump {
   0%   { transform: scale(1); }
   30%  { transform: scale(1.18); }
   100% { transform: scale(1); }
 }
-.score-bump {
-  animation: scoreBump 0.3s ease-out;
-}
+.score-bump { animation: scoreBump 0.3s ease-out; }
 
-/* ---- Board flash on chain ---- */
 @keyframes boardFlash {
   0%, 100% { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
   50%       { box-shadow: inset 0 0 40px 8px rgba(180,120,255,0.25); }
 }
-.board-flash {
-  animation: boardFlash 0.55s ease-in-out;
-}
+.board-flash { animation: boardFlash 0.55s ease-in-out; }
 
-/* ---- Fade-in overlay ---- */
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.92); }
   to   { opacity: 1; transform: scale(1); }
 }
-.fade-in {
-  animation: fadeIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
+.fade-in { animation: fadeIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-/* ---- Animated background (puyo screen) ---- */
 @keyframes bgDrift {
   0%   { background-position: 0% 0%; }
   50%  { background-position: 100% 100%; }
   100% { background-position: 0% 0%; }
 }
 .animated-bg {
-  background: radial-gradient(ellipse at 20% 20%, #12012a 0%, transparent 60%),
-              radial-gradient(ellipse at 80% 80%, #00122a 0%, transparent 60%),
-              radial-gradient(ellipse at 50% 50%, #0a0a1e 0%, #050510 100%);
+  background:
+    radial-gradient(ellipse at 20% 20%, #12012a 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, #00122a 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, #0a0a1e 0%, #050510 100%);
   background-size: 200% 200%;
   animation: bgDrift 30s ease infinite;
 }
 
-/* ---- Scanline overlay ---- */
 .scanlines::after {
   content: '';
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
     0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.08) 2px,
-    rgba(0,0,0,0.08) 4px
+    transparent, transparent 2px,
+    rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
   );
   pointer-events: none;
   border-radius: inherit;
