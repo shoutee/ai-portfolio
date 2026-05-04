@@ -178,6 +178,15 @@ body {
 /* Clickable cursor */
 .work-card.clickable { cursor: pointer; }
 
+/* ── Hero mini-cards (CSS hover — no React state) ──────────────────────────── */
+.mini-card {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.mini-card:hover {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6), 0 0 24px rgba(255,107,43,0.3);
+}
+
 /* ── Tool card ──────────────────────────────────────────────────────────────── */
 .tool-card {
   background: var(--surface);

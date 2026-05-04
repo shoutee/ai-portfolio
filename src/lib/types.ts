@@ -5,8 +5,8 @@ export interface Work {
   image: string;
   tool: string;
   tags: readonly string[];
-  accent: string;       // hover glow & tool badge color
-  href: string | null;  // null = no live link
+  accent: string;
+  href: string | null;
   isNew?: boolean;
 }
 
@@ -24,3 +24,21 @@ export interface NavItem {
 }
 
 export type FilterLabel = 'すべて' | 'ゲーム' | 'LP' | 'Next.js' | 'スマホ対応';
+
+// ── Agent & Skill records ─────────────────────────────────────────────────────
+
+export type AgentKind = 'SubAgent' | 'Skill';
+export type AgentStatus = 'success' | 'partial' | 'info';
+
+export interface AgentRecord {
+  id: string;
+  kind: AgentKind;
+  /** SubAgent type (Explore / Plan / code-reviewer …) or Skill name */
+  badge: string;
+  name: string;
+  purpose: string;
+  outputs: string[];
+  icon: string;
+  color: string;
+  status: AgentStatus;
+}
