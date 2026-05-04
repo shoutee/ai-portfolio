@@ -1,4 +1,4 @@
-import type { Work, Tool, NavItem, FilterLabel, AgentRecord } from './types';
+import type { Work, Tool, NavItem, FilterLabel, AgentRecord, WorkTag } from './types';
 
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
@@ -11,7 +11,7 @@ export const WORKS: Work[] = [
       'NotebookLMを使って生成したAI×Webマーケスクールのランディングページ。ターゲット設計・訴求軸・ビジュアル方針をAIと対話しながら構築。',
     image: '/work-piyopiyo.png',
     tool: 'NotebookLM',
-    tags: ['LP', 'マーケ', 'かわいい系'],
+    tags: ['LP', 'マーケ', 'かわいい系'] satisfies WorkTag[],
     accent: '#a855f7',
     href: null,
   },
@@ -22,7 +22,7 @@ export const WORKS: Work[] = [
       'Manusでゼロからビルドしたブラウザテトリスゲーム。スマホ向けタップ・スワイプ操作にも完全対応したレスポンシブ設計。',
     image: '/work-tetris.png',
     tool: 'Manus',
-    tags: ['ゲーム', 'ダーク系', 'スマホ対応'],
+    tags: ['ゲーム', 'ダーク系', 'スマホ対応'] satisfies WorkTag[],
     accent: '#00d4ff',
     href: null,
   },
@@ -33,7 +33,7 @@ export const WORKS: Work[] = [
       'Claude Codeで設計・実装したNext.js版ぷよぷよ。連鎖BFS判定・スコアリング・レベル進行・ゴーストピース・モバイル操作を完全実装。',
     image: '/work-puyo.png',
     tool: 'Claude Code',
-    tags: ['ゲーム', 'Next.js', 'TypeScript'],
+    tags: ['ゲーム', 'Next.js', 'TypeScript'] satisfies WorkTag[],
     accent: '#a855f7',
     href: '/puyo',
     isNew: true,

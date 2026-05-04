@@ -8,6 +8,8 @@ import {
   BASE_PATH, AGENT_RECORDS, BUILD_PIPELINE,
 } from '@/lib/data';
 import type { Work, Tool, FilterLabel, AgentRecord } from '@/lib/types';
+import { agentStatusColor, agentStatusLabel } from '@/lib/types';
+import { safeHex } from '@/lib/color';
 
 // ── Hook: Scroll Reveal ───────────────────────────────────────────────────────
 function useReveal<T extends HTMLElement>(delay = 0) {
@@ -37,19 +39,29 @@ function useReveal<T extends HTMLElement>(delay = 0) {
   };
 }
 
+// Sanitize href: only allow relative paths to prevent javascript: injection
+function safeRelativeHref(href: string | null): string | null {
+  if (href === null) return null;
+  return href.startsWith('/') ? href : null;
+}
+
 // ── Component: WorkCard ───────────────────────────────────────────────────────
 function WorkCard({ work, index }: { work: Work; index: number }) {
   const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.09);
+  const href = safeRelativeHref(work.href);
 
-  const accentVars = useMemo(() => ({
-    '--card-glow':   `${work.accent}40`,
-    '--card-border': `${work.accent}55`,
-    '--card-accent': work.accent,
-  } as React.CSSProperties), [work.accent]);
+  const accentVars = useMemo(() => {
+    const accent = safeHex(work.accent);
+    return {
+      '--card-glow':   `${accent}40`,
+      '--card-border': `${accent}55`,
+      '--card-accent': accent,
+    } as React.CSSProperties;
+  }, [work.accent]);
 
   const inner = (
     <article
-      className={`work-card${work.href ? ' clickable' : ''}`}
+      className={`work-card${href ? ' clickable' : ''}`}
       style={accentVars}
     >
       <div className="relative" style={{ aspectRatio: '16/9', overflow: 'hidden' }}>
@@ -64,7 +76,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
         <div className="card-top-scrim absolute inset-0 pointer-events-none" />
         <div className="card-scrim absolute inset-0 pointer-events-none" />
 
-        {work.href && (
+        {href && (
           <div
             className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded"
             style={{
@@ -117,7 +129,7 @@ function WorkCard({ work, index }: { work: Work; index: number }) {
 
   return (
     <div ref={ref} style={wrapStyle}>
-      {work.href ? <Link href={work.href} className="block h-full">{inner}</Link> : inner}
+      {href ? <Link href={href} className="block h-full">{inner}</Link> : inner}
     </div>
   );
 }
@@ -144,10 +156,8 @@ function ToolCard({ tool, index }: { tool: Tool; index: number }) {
 function AgentCard({ record, index }: { record: AgentRecord; index: number }) {
   const { ref, wrapStyle } = useReveal<HTMLDivElement>(index * 0.08);
 
-  const statusColor = record.status === 'success' ? '#4ade80'
-    : record.status === 'partial' ? '#f59e0b' : '#9399b2';
-  const statusLabel = record.status === 'success' ? 'SUCCESS'
-    : record.status === 'partial' ? 'PARTIAL' : 'INFO';
+  const statusColor = agentStatusColor(record.status);
+  const statusLabel = agentStatusLabel(record.status);
 
   return (
     <div ref={ref} style={wrapStyle}>
@@ -354,11 +364,27 @@ function SectionHeader({ eyebrow, title, count }: { eyebrow: string; title: stri
   );
 }
 
-// ── Component: HeroMiniCards (CSS hover, memoized) ────────────────────────────
+// ── Hook: xl viewport detection (SSR-safe — starts false, updates after mount) ─
+function useIsXl(): boolean {
+  const [isXl, setIsXl] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)');
+    setIsXl(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsXl(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isXl;
+}
+
+// ── Component: HeroMiniCards (only mounts on xl — no image load on mobile) ────
 const HeroMiniCards = memo(function HeroMiniCards({ visible }: { visible: boolean }) {
+  const isXl = useIsXl();
+  if (!isXl) return null;
+
   return (
     <div
-      className="hidden xl:flex flex-col gap-3"
+      className="flex flex-col gap-3"
       style={{
         position: 'absolute', right: '48px', top: '50%', transform: 'translateY(-50%)',
         opacity: visible ? 1 : 0,

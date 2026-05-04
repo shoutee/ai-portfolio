@@ -1,12 +1,17 @@
+// Branded type: only relative paths ("/...") are assignable — prevents javascript: injection
+export type RelativePath = `/${string}`;
+
 export interface Work {
   id: string;
   title: string;
   description: string;
-  image: string;
+  /** Must start with "/" (relative path) or be null */
+  image: RelativePath;
   tool: string;
-  tags: readonly string[];
-  accent: string;
-  href: string | null;
+  tags: readonly WorkTag[];
+  /** Hex color string, e.g. "#a855f7" */
+  accent: HexColor;
+  href: RelativePath | null;
   isNew?: boolean;
 }
 
@@ -14,7 +19,7 @@ export interface Tool {
   name: string;
   icon: string;
   desc: string;
-  color: string;
+  color: HexColor;
 }
 
 export interface NavItem {
@@ -23,7 +28,13 @@ export interface NavItem {
   icon: string;
 }
 
-export type FilterLabel = 'すべて' | 'ゲーム' | 'LP' | 'Next.js' | 'スマホ対応';
+// Single source of truth — FilterLabel is derived from ALL_FILTERS in data.ts
+// WorkTag covers the filterable subset of tags
+export type WorkTag = 'ゲーム' | 'LP' | 'Next.js' | 'スマホ対応' | 'マーケ' | 'かわいい系' | 'ダーク系' | 'TypeScript';
+export type FilterLabel = 'すべて' | WorkTag;
+
+// Opaque hex color — catches typos at compile time when used with satisfies
+export type HexColor = `#${string}`;
 
 // ── Agent & Skill records ─────────────────────────────────────────────────────
 
@@ -37,8 +48,28 @@ export interface AgentRecord {
   badge: string;
   name: string;
   purpose: string;
-  outputs: string[];
+  outputs: readonly string[];
   icon: string;
-  color: string;
+  color: HexColor;
   status: AgentStatus;
+}
+
+// ── Agent status helpers (single responsibility) ──────────────────────────────
+
+export function agentStatusColor(status: AgentStatus): string {
+  const map: Record<AgentStatus, string> = {
+    success: '#4ade80',
+    partial:  '#f59e0b',
+    info:     '#9399b2',
+  };
+  return map[status];
+}
+
+export function agentStatusLabel(status: AgentStatus): string {
+  const map: Record<AgentStatus, string> = {
+    success: 'SUCCESS',
+    partial:  'PARTIAL',
+    info:     'INFO',
+  };
+  return map[status];
 }
